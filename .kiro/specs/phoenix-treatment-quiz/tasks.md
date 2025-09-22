@@ -1,6 +1,8 @@
 # Implementation Plan
 
-- [x] 1. Set up Flutter web project structure and dependencies
+- [ ] 1. Set up Flutter web project structure and dependencies
+
+
 
 
   - Initialize Flutter project with web support enabled

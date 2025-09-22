@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter_animate/flutter_animate.dart';
+import 'package:responsive_framework/responsive_framework.dart';
+import 'firebase_options.dart';
 import 'data/erectile_dysfunction_quiz.dart';
 import 'data/weight_loss_quiz.dart';
 import 'data/hair_loss_quiz.dart';
 import 'data/premature_ejaculation_quiz.dart';
 import 'data/testosterone_booster_quiz.dart';
 
-void main() => runApp(const PhoenixApp());
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(const PhoenixApp());
+}
 
 class PhoenixApp extends StatelessWidget {
   const PhoenixApp({super.key});
@@ -17,20 +25,13 @@ class PhoenixApp extends StatelessWidget {
     return MaterialApp(
       title: 'Phoenix Quiz',
       theme: ThemeData(
-        primaryColor:
-            const Color(0xFF1E3A8A), // Softer blue for professionalism
+        primaryColor: const Color(0xFF1E3A8A),
         colorScheme: const ColorScheme.light(
           primary: Color(0xFF1E3A8A),
-          secondary: Color(0xFF06B6D4), // Teal accent for vibrancy
+          secondary: Color(0xFF06B6D4),
           surface: Colors.white,
         ),
-        textTheme: GoogleFonts.poppinsTextTheme(), // Modern, clean font
-        pageTransitionsTheme: const PageTransitionsTheme(
-          builders: {
-            TargetPlatform.android: ZoomPageTransitionsBuilder(),
-            TargetPlatform.iOS: ZoomPageTransitionsBuilder(),
-          },
-        ),
+        textTheme: GoogleFonts.poppinsTextTheme(),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFF1E3A8A),
@@ -42,6 +43,15 @@ class PhoenixApp extends StatelessWidget {
         ),
       ),
       debugShowCheckedModeBanner: false,
+      builder: (context, child) => ResponsiveBreakpoints.builder(
+        child: child!,
+        breakpoints: [
+          const Breakpoint(start: 0, end: 450, name: MOBILE),
+          const Breakpoint(start: 451, end: 800, name: TABLET),
+          const Breakpoint(start: 801, end: 1920, name: DESKTOP),
+          const Breakpoint(start: 1921, end: double.infinity, name: '4K'),
+        ],
+      ),
       home: const OnboardingPage(),
     );
   }
@@ -58,6 +68,15 @@ class OnboardingPage extends StatelessWidget {
     {'title': 'Testosterone Booster', 'image': 'assets/doctor.png'},
   ];
 
+  double _getResponsiveValue(BuildContext context,
+      {required double mobile,
+      required double tablet,
+      required double desktop}) {
+    if (ResponsiveBreakpoints.of(context).isMobile) return mobile;
+    if (ResponsiveBreakpoints.of(context).isTablet) return tablet;
+    return desktop;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,75 +89,50 @@ class OnboardingPage extends StatelessWidget {
           style: GoogleFonts.poppins(
             fontWeight: FontWeight.bold,
             letterSpacing: 1.5,
-            color: const Color(0xFF06B6D4), // Teal for consistency
+            color: const Color(0xFF06B6D4),
           ),
         ),
       ),
       body: Padding(
-        padding:
-            const EdgeInsets.all(24.0), // Increased padding for breathing room
+        padding: EdgeInsets.all(
+            _getResponsiveValue(context, mobile: 16, tablet: 24, desktop: 32)),
         child: Column(
           children: [
             Text(
               "What treatment are you looking for?",
               style: GoogleFonts.poppins(
-                fontSize: 28,
+                fontSize: _getResponsiveValue(context,
+                    mobile: 20, tablet: 24, desktop: 28),
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF1E3A8A),
               ),
+              textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: LayoutBuilder(
-                builder: (context, constraints) => GridView.count(
-                  crossAxisCount: constraints.maxWidth > 1200
-                      ? 5
-                      : constraints.maxWidth > 800
-                          ? 3
-                          : constraints.maxWidth > 500
-                              ? 2
-                              : 1,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 0.85, // Taller cards for better visuals
-                  children: treatments
-                      .asMap()
-                      .entries
-                      .map((entry) => TreatmentCard(
-                            title: entry.value['title']!,
-                            image: entry.value['image']!,
-                            index: entry.key,
-                            onTap: () => Navigator.push(
-                              context,
-                              PageRouteBuilder(
-                                pageBuilder: (context, animation, _) =>
-                                    QuizPage(
-                                  treatment: entry.value['title']!,
-                                  heroTag: entry.value['title']!,
-                                ),
-                                transitionsBuilder:
-                                    (context, animation, _, child) =>
-                                        ScaleTransition(
-                                  scale: animation.drive(
-                                    Tween(begin: 0.8, end: 1.0).chain(
-                                      CurveTween(curve: Curves.easeInOut),
-                                    ),
-                                  ),
-                                  child: FadeTransition(
-                                    opacity: animation,
-                                    child: child,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ))
-                      .toList(),
-                ).animate().fadeIn(duration: 600.ms).slideY(
-                      begin: 0.2,
-                      end: 0.0,
-                      duration: 600.ms,
-                      curve: Curves.easeOut,
+              child: ResponsiveGridView.builder(
+                gridDelegate: ResponsiveGridDelegate(
+                  crossAxisExtent: _getResponsiveValue(context,
+                      mobile: 160, tablet: 200, desktop: 240),
+                  mainAxisSpacing: _getResponsiveValue(context,
+                      mobile: 12, tablet: 16, desktop: 20),
+                  crossAxisSpacing: _getResponsiveValue(context,
+                      mobile: 12, tablet: 16, desktop: 20),
+                ),
+                itemCount: treatments.length,
+                itemBuilder: (context, index) {
+                  final treatment = treatments[index];
+                  return TreatmentCard(
+                    title: treatment['title']!,
+                    image: treatment['image']!,
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              QuizPage(treatment: treatment['title']!)),
                     ),
+                  );
+                },
               ),
             ),
           ],
@@ -150,16 +144,13 @@ class OnboardingPage extends StatelessWidget {
 
 class TreatmentCard extends StatefulWidget {
   final String title, image;
-  final int index;
   final VoidCallback onTap;
 
-  const TreatmentCard({
-    super.key,
-    required this.title,
-    required this.image,
-    required this.index,
-    required this.onTap,
-  });
+  const TreatmentCard(
+      {super.key,
+      required this.title,
+      required this.image,
+      required this.onTap});
 
   @override
   State<TreatmentCard> createState() => _TreatmentCardState();
@@ -174,12 +165,18 @@ class _TreatmentCardState extends State<TreatmentCard>
   void initState() {
     super.initState();
     _controller = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95).animate(
-      CurvedAnimation(parent: _controller, curve: Curves.easeInOut),
-    );
+        duration: const Duration(milliseconds: 200), vsync: this);
+    _scaleAnimation = Tween<double>(begin: 1.0, end: 0.95)
+        .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  double _getResponsiveValue(
+      {required double mobile,
+      required double tablet,
+      required double desktop}) {
+    if (ResponsiveBreakpoints.of(context).isMobile) return mobile;
+    if (ResponsiveBreakpoints.of(context).isTablet) return tablet;
+    return desktop;
   }
 
   @override
@@ -194,7 +191,7 @@ class _TreatmentCardState extends State<TreatmentCard>
           scale: _scaleAnimation.value,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16), // Softer corners
+              borderRadius: BorderRadius.circular(16),
               gradient: const LinearGradient(
                 colors: [Color(0xFFFFFFFF), Color(0xFFF1F5F9)],
                 begin: Alignment.topLeft,
@@ -202,29 +199,33 @@ class _TreatmentCardState extends State<TreatmentCard>
               ),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.1),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4))
               ],
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Hero(
-                  tag: widget.title,
-                  child: Image.asset(widget.image, height: 100)
-                      .animate()
-                      .fadeIn(delay: (widget.index * 100).ms, duration: 400.ms),
+                Image.asset(
+                  widget.image,
+                  height:
+                      _getResponsiveValue(mobile: 50, tablet: 70, desktop: 80),
                 ),
-                const SizedBox(height: 16),
-                Text(
-                  widget.title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w500,
-                    color: const Color(0xFF1E3A8A),
+                SizedBox(
+                    height: _getResponsiveValue(
+                        mobile: 8, tablet: 12, desktop: 16)),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  child: Text(
+                    widget.title,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                      fontSize: _getResponsiveValue(
+                          mobile: 12, tablet: 14, desktop: 16),
+                      fontWeight: FontWeight.w500,
+                      color: const Color(0xFF1E3A8A),
+                    ),
                   ),
                 ),
               ],
@@ -232,13 +233,7 @@ class _TreatmentCardState extends State<TreatmentCard>
           ),
         ),
       ),
-    ).animate().slideY(
-          begin: 0.3,
-          end: 0.0,
-          delay: (widget.index * 100).ms,
-          duration: 500.ms,
-          curve: Curves.easeOutCubic,
-        );
+    );
   }
 
   @override
@@ -250,9 +245,8 @@ class _TreatmentCardState extends State<TreatmentCard>
 
 class QuizPage extends StatefulWidget {
   final String treatment;
-  final String heroTag;
 
-  const QuizPage({super.key, required this.treatment, required this.heroTag});
+  const QuizPage({super.key, required this.treatment});
 
   @override
   State<QuizPage> createState() => _QuizPageState();
@@ -260,12 +254,12 @@ class QuizPage extends StatefulWidget {
 
 class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   int currentIndex = 0;
-  late AnimationController _slideController, _fadeController;
-  late Animation<Offset> _slideAnimation;
+  late AnimationController _fadeController;
   late Animation<double> _fadeAnimation;
   final _controllers = <TextEditingController>[
     for (int i = 0; i < 5; i++) TextEditingController()
   ];
+  final Map<int, String> _userAnswers = {};
 
   static const quizData = {
     "Hair Loss": HairLossQuiz.questions,
@@ -278,24 +272,20 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _slideController = AnimationController(
-      duration: const Duration(milliseconds: 400),
-      vsync: this,
-    );
     _fadeController = AnimationController(
-      duration: const Duration(milliseconds: 300),
-      vsync: this,
-    );
-    _slideAnimation = Tween<Offset>(
-      begin: const Offset(0.3, 0.0),
-      end: Offset.zero,
-    ).animate(
-        CurvedAnimation(parent: _slideController, curve: Curves.easeInOut));
+        duration: const Duration(milliseconds: 300), vsync: this);
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _fadeController, curve: Curves.easeIn),
-    );
-    _slideController.forward();
+        CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
     _fadeController.forward();
+  }
+
+  double _getResponsiveValue(
+      {required double mobile,
+      required double tablet,
+      required double desktop}) {
+    if (ResponsiveBreakpoints.of(context).isMobile) return mobile;
+    if (ResponsiveBreakpoints.of(context).isTablet) return tablet;
+    return desktop;
   }
 
   bool _validateAge() {
@@ -304,61 +294,197 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     final month = int.tryParse(_controllers[1].text);
     final year = int.tryParse(_controllers[2].text);
     if (day == null || month == null || year == null) return false;
-    final age = DateTime.now().year - year;
+    final birthDate = DateTime(year, month, day);
+    final today = DateTime.now();
+    final age = today.year - birthDate.year;
+    if (today.month < birthDate.month ||
+        (today.month == birthDate.month && today.day < birthDate.day)) {
+      return age - 1 >= 18;
+    }
     return age >= 18;
   }
 
-  void _nextQuestion() async {
+  void _nextQuestion([String? selectedAnswer]) async {
     final questions = quizData[widget.treatment]!;
     final current = questions[currentIndex];
 
+    if (selectedAnswer != null) {
+      _userAnswers[currentIndex] = selectedAnswer;
+    }
+
     if (current['type'] == 'date_input' && !_validateAge()) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'You are not eligible. Must be 18 or older.',
-            style: GoogleFonts.poppins(),
-          ),
-          backgroundColor: Colors.redAccent,
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('You are not eligible. Must be 18 or older.'),
+              backgroundColor: Colors.red),
+        );
+      }
       return;
     }
 
     if (currentIndex < questions.length - 1) {
       await _fadeController.reverse();
       setState(() => currentIndex++);
-      _slideController.reset();
-      _fadeController.reset();
-      _slideController.forward();
       _fadeController.forward();
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            "Completed ${widget.treatment} Quiz",
-            style: GoogleFonts.poppins(),
-          ),
-          backgroundColor: const Color(0xFF06B6D4),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
-      );
+      _showEmailPasswordDialog();
     }
   }
 
-  void _previousQuestion() async {
-    if (currentIndex > 0) {
-      await _fadeController.reverse();
-      setState(() => currentIndex--);
-      _slideController.reset();
-      _fadeController.reset();
-      _slideController.forward();
-      _fadeController.forward();
+  void _showEmailPasswordDialog() {
+    final emailController = TextEditingController();
+    final passwordController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          'Complete Your Profile',
+          style: GoogleFonts.poppins(
+              fontWeight: FontWeight.w600, color: const Color(0xFF1E3A8A)),
+        ),
+        content: SizedBox(
+          width: _getResponsiveValue(mobile: 300, tablet: 350, desktop: 400),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'Please provide your email and create a password to save your ${widget.treatment} quiz results.',
+                style:
+                    GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                controller: emailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  labelText: 'Email Address',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.email, color: Color(0xFF1E3A8A)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  labelText: 'Create Password',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  prefixIcon: const Icon(Icons.lock, color: Color(0xFF1E3A8A)),
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Cancel',
+                style: GoogleFonts.poppins(color: Colors.grey[600])),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (emailController.text.trim().isEmpty ||
+                  passwordController.text.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please fill in all fields')),
+                );
+                return;
+              }
+              Navigator.pop(context);
+              await _saveCompleteUserProfile(
+                email: emailController.text.trim(),
+                password: passwordController.text.trim(),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text('Save Results',
+                style: GoogleFonts.poppins(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _saveCompleteUserProfile(
+      {required String email, required String password}) async {
+    try {
+      final credential =
+          await FirebaseAuth.instance.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final questions = quizData[widget.treatment]!;
+      final answers = <String, dynamic>{};
+
+      for (int i = 0; i < questions.length; i++) {
+        if (_userAnswers.containsKey(i)) {
+          answers['question_${i + 1}'] = {
+            'questionNumber': i + 1,
+            'questionText': questions[i]['question'],
+            'selectedAnswer': _userAnswers[i],
+            'questionType': questions[i]['type'] ?? 'multiple_choice',
+          };
+        }
+      }
+
+      final userProfile = {
+        'uid': credential.user!.uid,
+        'email': email,
+        'firstName': _controllers[3].text.trim(),
+        'lastName': _controllers[4].text.trim(),
+        'fullName':
+            '${_controllers[3].text.trim()} ${_controllers[4].text.trim()}',
+        'dateOfBirth':
+            '${_controllers[0].text}/${_controllers[1].text}/${_controllers[2].text}',
+        'treatment': widget.treatment,
+        'totalQuestions': questions.length,
+        'answersCount': answers.length,
+        'allAnswers': answers,
+        'createdAt': FieldValue.serverTimestamp(),
+        'completedAt': FieldValue.serverTimestamp(),
+        'deviceInfo': 'Web',
+        'appVersion': '1.0.0',
+      };
+
+      // Save to users collection for easy viewing in Firebase Console
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set(userProfile);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                "✅ Quiz completed! Your ${widget.treatment} profile saved to Firebase Console."),
+            backgroundColor: const Color(0xFF06B6D4),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -381,57 +507,59 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
           ),
         ),
       ),
-      body: SlideTransition(
-        position: _slideAnimation,
-        child: FadeTransition(
-          opacity: _fadeAnimation,
-          child: Padding(
-            padding: const EdgeInsets.all(24.0),
-            child: Column(
-              children: [
-                LinearProgressIndicator(
-                  value: (currentIndex + 1) / questions.length,
-                  backgroundColor: Colors.grey.shade200,
-                  valueColor:
-                      const AlwaysStoppedAnimation<Color>(Color(0xFF06B6D4)),
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(8),
-                ).animate().scale(duration: 400.ms, curve: Curves.easeOut),
-                const SizedBox(height: 32),
-                Text(
-                  current['question'],
-                  style: GoogleFonts.poppins(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1E3A8A),
-                  ),
-                  textAlign: TextAlign.center,
+      body: FadeTransition(
+        opacity: _fadeAnimation,
+        child: Padding(
+          padding: EdgeInsets.all(
+              _getResponsiveValue(mobile: 16, tablet: 24, desktop: 32)),
+          child: Column(
+            children: [
+              LinearProgressIndicator(
+                value: (currentIndex + 1) / questions.length,
+                backgroundColor: Colors.grey.shade200,
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(Color(0xFF06B6D4)),
+                minHeight:
+                    _getResponsiveValue(mobile: 6, tablet: 8, desktop: 10),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              const SizedBox(height: 32),
+              Text(
+                current['question'],
+                style: GoogleFonts.poppins(
+                  fontSize:
+                      _getResponsiveValue(mobile: 18, tablet: 20, desktop: 22),
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF1E3A8A),
                 ),
-                const SizedBox(height: 32),
-                Expanded(child: _buildQuestionContent(current)),
-                if (currentIndex > 0)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 16),
-                    child: OutlinedButton(
-                      onPressed: _previousQuestion,
-                      style: OutlinedButton.styleFrom(
-                        minimumSize: const Size(double.infinity, 56),
-                        side: const BorderSide(color: Color(0xFF06B6D4)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: Text(
-                        "Previous",
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              Expanded(child: _buildQuestionContent(current)),
+              if (currentIndex > 0)
+                Padding(
+                  padding: const EdgeInsets.only(top: 16),
+                  child: OutlinedButton(
+                    onPressed: () async {
+                      await _fadeController.reverse();
+                      setState(() => currentIndex--);
+                      _fadeController.forward();
+                    },
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: Size(
+                          double.infinity,
+                          _getResponsiveValue(
+                              mobile: 48, tablet: 52, desktop: 56)),
+                      side: const BorderSide(color: Color(0xFF06B6D4)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                    child: Text("Previous",
                         style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          color: const Color(0xFF1E3A8A),
-                        ),
-                      ),
-                    ).animate().fadeIn(delay: 200.ms),
+                            fontSize: 16, color: const Color(0xFF1E3A8A))),
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
         ),
       ),
@@ -452,38 +580,42 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   Widget _buildDateInput() {
     return Column(
       children: [
-        Row(
+        ResponsiveRowColumn(
+          layout: ResponsiveBreakpoints.of(context).isMobile
+              ? ResponsiveRowColumnType.COLUMN
+              : ResponsiveRowColumnType.ROW,
           children: [
-            for (int i = 0; i < 3; i++) ...[
-              Expanded(
-                child: TextField(
-                  controller: _controllers[i],
-                  keyboardType: TextInputType.number,
-                  decoration: InputDecoration(
-                    labelText: ['DD', 'MM', 'YYYY'][i],
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+            for (int i = 0; i < 3; i++)
+              ResponsiveRowColumnItem(
+                child: Padding(
+                  padding: EdgeInsets.all(
+                      _getResponsiveValue(mobile: 4, tablet: 6, desktop: 8)),
+                  child: TextField(
+                    controller: _controllers[i],
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      labelText: ['DD', 'MM', 'YYYY'][i],
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 16),
                     ),
-                    filled: true,
-                    fillColor: Colors.grey.shade50,
                   ),
-                ).animate().fadeIn(delay: (100 * i).ms),
+                ),
               ),
-              if (i < 2) const SizedBox(width: 12),
-            ],
           ],
         ),
         const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: _nextQuestion,
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 56),
+        SizedBox(
+          width: double.infinity,
+          height: _getResponsiveValue(mobile: 48, tablet: 52, desktop: 56),
+          child: ElevatedButton(
+            onPressed: () => _nextQuestion(),
+            child: Text('Continue', style: GoogleFonts.poppins(fontSize: 16)),
           ),
-          child: Text(
-            'Continue',
-            style: GoogleFonts.poppins(fontSize: 16),
-          ),
-        ).animate().scale(delay: 300.ms, curve: Curves.easeOut),
+        ),
       ],
     );
   }
@@ -496,26 +628,25 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
             controller: _controllers[i],
             decoration: InputDecoration(
               labelText: ['First Name', 'Last Name'][i - 3],
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+              border:
+                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               filled: true,
               fillColor: Colors.grey.shade50,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
             ),
-          ).animate().fadeIn(delay: (100 * (i - 3)).ms),
+          ),
           if (i == 3) const SizedBox(height: 16),
         ],
         const SizedBox(height: 24),
-        ElevatedButton(
-          onPressed: _nextQuestion,
-          style: ElevatedButton.styleFrom(
-            minimumSize: const Size(double.infinity, 56),
+        SizedBox(
+          width: double.infinity,
+          height: _getResponsiveValue(mobile: 48, tablet: 52, desktop: 56),
+          child: ElevatedButton(
+            onPressed: () => _nextQuestion(),
+            child: Text('Continue', style: GoogleFonts.poppins(fontSize: 16)),
           ),
-          child: Text(
-            'Continue',
-            style: GoogleFonts.poppins(fontSize: 16),
-          ),
-        ).animate().scale(delay: 300.ms, curve: Curves.easeOut),
+        ),
       ],
     );
   }
@@ -523,42 +654,48 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   Widget _buildMultipleChoice(List<String> options) {
     return ListView.builder(
       itemCount: options.length,
-      itemBuilder: (context, index) => ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          minimumSize: const Size(double.infinity, 60),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF1E3A8A),
-          side: BorderSide(color: Colors.grey.shade200),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          elevation: 2,
-        ),
-        onPressed: _nextQuestion,
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                options[index],
-                textAlign: TextAlign.center,
-                style: GoogleFonts.poppins(fontSize: 16),
-              ),
+      itemBuilder: (context, index) => Container(
+        margin: EdgeInsets.symmetric(
+            vertical: _getResponsiveValue(mobile: 4, tablet: 6, desktop: 8)),
+        child: ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            minimumSize: Size(double.infinity,
+                _getResponsiveValue(mobile: 50, tablet: 55, desktop: 60)),
+            backgroundColor: Colors.white,
+            foregroundColor: const Color(0xFF1E3A8A),
+            side: BorderSide(color: Colors.grey.shade200),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 2,
+            padding: EdgeInsets.symmetric(
+              horizontal:
+                  _getResponsiveValue(mobile: 16, tablet: 20, desktop: 24),
+              vertical: 16,
             ),
-            const Icon(Icons.chevron_right, color: Color(0xFF06B6D4)),
-          ],
-        ),
-      ).animate().slideY(
-            begin: 0.2,
-            end: 0.0,
-            delay: (100 * index).ms,
-            duration: 400.ms,
-            curve: Curves.easeOut,
           ),
+          onPressed: () => _nextQuestion(options[index]),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  options[index],
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    fontSize: _getResponsiveValue(
+                        mobile: 14, tablet: 15, desktop: 16),
+                  ),
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: Color(0xFF06B6D4)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
   @override
   void dispose() {
-    _slideController.dispose();
     _fadeController.dispose();
     for (var controller in _controllers) {
       controller.dispose();
