@@ -93,7 +93,10 @@
   - Add automatic layout switching based on screen size
   - _Requirements: 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 9. Integrate age verification with quiz flow
+- [x] 9. Integrate age verification with quiz flow
+
+
+
   - Add age verification dialog/screen before quiz access
   - Implement date picker or input field for birth date
   - Connect age validation with quiz screen navigation
@@ -112,9 +115,13 @@
   - Optimize assets and images for web performance
   - Add web-specific responsive breakpoints
   - Test cross-browser compatibility
+
+
+
   - _Requirements: 5.1, 5.2, 5.4_
 
-- [ ] 12. Set up Firebase hosting configuration
+- [-] 12. Set up Firebase hosting configuration
+
   - Create firebase.json configuration file
   - Configure hosting settings for Flutter web
   - Set up build and deployment scripts

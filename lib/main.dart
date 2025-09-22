@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
+
 import 'package:responsive_framework/responsive_framework.dart';
 import 'firebase_options.dart';
 import 'data/erectile_dysfunction_quiz.dart';
@@ -57,8 +58,15 @@ class PhoenixApp extends StatelessWidget {
   }
 }
 
-class OnboardingPage extends StatelessWidget {
+class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
+
+  @override
+  State<OnboardingPage> createState() => _OnboardingPageState();
+}
+
+class _OnboardingPageState extends State<OnboardingPage> {
+  User? _currentUser;
 
   static const treatments = [
     {'title': 'Erectile Dysfunction', 'image': 'assets/doctor.png'},
@@ -68,17 +76,48 @@ class OnboardingPage extends StatelessWidget {
     {'title': 'Testosterone Booster', 'image': 'assets/doctor.png'},
   ];
 
-  double _getResponsiveValue(BuildContext context,
-      {required double mobile,
-      required double tablet,
-      required double desktop}) {
-    if (ResponsiveBreakpoints.of(context).isMobile) return mobile;
-    if (ResponsiveBreakpoints.of(context).isTablet) return tablet;
-    return desktop;
+  @override
+  void initState() {
+    super.initState();
+    _currentUser = FirebaseAuth.instance.currentUser;
+  }
+
+  Future<void> _signInWithGoogle() async {
+    try {
+      // For web, use Firebase Auth popup
+      final GoogleAuthProvider googleProvider = GoogleAuthProvider();
+
+      final UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithPopup(googleProvider);
+
+      setState(() {
+        _currentUser = userCredential.user;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Welcome ${_currentUser?.displayName ?? 'User'}!'),
+            backgroundColor: const Color(0xFF06B6D4),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Sign-in failed: $e'), backgroundColor: Colors.red),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    final isTablet = MediaQuery.of(context).size.width >= 600 &&
+        MediaQuery.of(context).size.width < 1200;
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: const Color(0xFF1E3A8A),
@@ -92,17 +131,101 @@ class OnboardingPage extends StatelessWidget {
             color: const Color(0xFF06B6D4),
           ),
         ),
+        actions: [
+          if (_currentUser != null)
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Center(
+                child: Text(
+                  _currentUser!.displayName?.split(' ').first ?? 'User',
+                  style: GoogleFonts.poppins(
+                    color: const Color(0xFF06B6D4),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
       body: Padding(
-        padding: EdgeInsets.all(
-            _getResponsiveValue(context, mobile: 16, tablet: 24, desktop: 32)),
+        padding: EdgeInsets.all(isMobile
+            ? 16
+            : isTablet
+                ? 24
+                : 32),
         child: Column(
           children: [
+            if (_currentUser == null) ...[
+              // Google Sign-In Section
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.1),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      "Sign in to continue",
+                      style: GoogleFonts.poppins(
+                        fontSize: isMobile ? 18 : 22,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF1E3A8A),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: _signInWithGoogle,
+                      icon: Image.asset(
+                        'assets/google_icon.png',
+                        height: 24,
+                        width: 24,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                          Icons.login,
+                          color: Colors.white,
+                        ),
+                      ),
+                      label: Text(
+                        'Sign in with Google',
+                        style: GoogleFonts.poppins(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.white,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF1E3A8A),
+                        minimumSize: Size(double.infinity, isMobile ? 52 : 60),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+
+            // Treatment Selection Section
             Text(
               "What treatment are you looking for?",
               style: GoogleFonts.poppins(
-                fontSize: _getResponsiveValue(context,
-                    mobile: 20, tablet: 24, desktop: 28),
+                fontSize: isMobile
+                    ? 20
+                    : isTablet
+                        ? 24
+                        : 28,
                 fontWeight: FontWeight.w600,
                 color: const Color(0xFF1E3A8A),
               ),
@@ -110,14 +233,16 @@ class OnboardingPage extends StatelessWidget {
             ),
             const SizedBox(height: 24),
             Expanded(
-              child: ResponsiveGridView.builder(
-                gridDelegate: ResponsiveGridDelegate(
-                  crossAxisExtent: _getResponsiveValue(context,
-                      mobile: 160, tablet: 200, desktop: 240),
-                  mainAxisSpacing: _getResponsiveValue(context,
-                      mobile: 12, tablet: 16, desktop: 20),
-                  crossAxisSpacing: _getResponsiveValue(context,
-                      mobile: 12, tablet: 16, desktop: 20),
+              child: GridView.builder(
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: isMobile
+                      ? 1
+                      : isTablet
+                          ? 2
+                          : 3,
+                  mainAxisSpacing: isMobile ? 12 : 16,
+                  crossAxisSpacing: isMobile ? 12 : 16,
+                  childAspectRatio: 1.2,
                 ),
                 itemCount: treatments.length,
                 itemBuilder: (context, index) {
@@ -125,12 +250,25 @@ class OnboardingPage extends StatelessWidget {
                   return TreatmentCard(
                     title: treatment['title']!,
                     image: treatment['image']!,
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) =>
-                              QuizPage(treatment: treatment['title']!)),
-                    ),
+                    onTap: _currentUser == null
+                        ? () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    'Please sign in first to take the quiz'),
+                                backgroundColor: Colors.orange,
+                              ),
+                            );
+                          }
+                        : () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => QuizPage(
+                                  treatment: treatment['title']!,
+                                  user: _currentUser!,
+                                ),
+                              ),
+                            ),
                   );
                 },
               ),
@@ -170,17 +308,10 @@ class _TreatmentCardState extends State<TreatmentCard>
         .animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
   }
 
-  double _getResponsiveValue(
-      {required double mobile,
-      required double tablet,
-      required double desktop}) {
-    if (ResponsiveBreakpoints.of(context).isMobile) return mobile;
-    if (ResponsiveBreakpoints.of(context).isTablet) return tablet;
-    return desktop;
-  }
-
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return GestureDetector(
       onTapDown: (_) => _controller.forward(),
       onTapUp: (_) => _controller.reverse().then((_) => widget.onTap()),
@@ -207,22 +338,15 @@ class _TreatmentCardState extends State<TreatmentCard>
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  widget.image,
-                  height:
-                      _getResponsiveValue(mobile: 50, tablet: 70, desktop: 80),
-                ),
-                SizedBox(
-                    height: _getResponsiveValue(
-                        mobile: 8, tablet: 12, desktop: 16)),
+                Image.asset(widget.image, height: isMobile ? 50 : 70),
+                SizedBox(height: isMobile ? 8 : 16),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8),
                   child: Text(
                     widget.title,
                     textAlign: TextAlign.center,
                     style: GoogleFonts.poppins(
-                      fontSize: _getResponsiveValue(
-                          mobile: 12, tablet: 14, desktop: 16),
+                      fontSize: isMobile ? 12 : 16,
                       fontWeight: FontWeight.w500,
                       color: const Color(0xFF1E3A8A),
                     ),
@@ -245,8 +369,9 @@ class _TreatmentCardState extends State<TreatmentCard>
 
 class QuizPage extends StatefulWidget {
   final String treatment;
+  final User user;
 
-  const QuizPage({super.key, required this.treatment});
+  const QuizPage({super.key, required this.treatment, required this.user});
 
   @override
   State<QuizPage> createState() => _QuizPageState();
@@ -277,15 +402,6 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _fadeController, curve: Curves.easeIn));
     _fadeController.forward();
-  }
-
-  double _getResponsiveValue(
-      {required double mobile,
-      required double tablet,
-      required double desktop}) {
-    if (ResponsiveBreakpoints.of(context).isMobile) return mobile;
-    if (ResponsiveBreakpoints.of(context).isTablet) return tablet;
-    return desktop;
   }
 
   bool _validateAge() {
@@ -347,12 +463,12 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
               fontWeight: FontWeight.w600, color: const Color(0xFF1E3A8A)),
         ),
         content: SizedBox(
-          width: _getResponsiveValue(mobile: 300, tablet: 350, desktop: 400),
+          width: MediaQuery.of(context).size.width < 600 ? 300 : 400,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Please provide your email and create a password to save your ${widget.treatment} quiz results.',
+                'Please provide your contact email and preferred password for your profile.',
                 style:
                     GoogleFonts.poppins(fontSize: 14, color: Colors.grey[700]),
                 textAlign: TextAlign.center,
@@ -362,7 +478,8 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'Email Address',
+                  labelText: 'Contact Email',
+                  hintText: 'your-email@example.com',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.email, color: Color(0xFF1E3A8A)),
@@ -375,7 +492,8 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 controller: passwordController,
                 obscureText: true,
                 decoration: InputDecoration(
-                  labelText: 'Create Password',
+                  labelText: 'Preferred Password',
+                  hintText: 'For your profile records',
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock, color: Color(0xFF1E3A8A)),
@@ -403,8 +521,8 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
               }
               Navigator.pop(context);
               await _saveCompleteUserProfile(
-                email: emailController.text.trim(),
-                password: passwordController.text.trim(),
+                contactEmail: emailController.text.trim(),
+                preferredPassword: passwordController.text.trim(),
               );
             },
             style: ElevatedButton.styleFrom(
@@ -421,14 +539,8 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   }
 
   Future<void> _saveCompleteUserProfile(
-      {required String email, required String password}) async {
+      {required String contactEmail, required String preferredPassword}) async {
     try {
-      final credential =
-          await FirebaseAuth.instance.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
       final questions = quizData[widget.treatment]!;
       final answers = <String, dynamic>{};
 
@@ -444,12 +556,13 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       }
 
       final userProfile = {
-        'uid': credential.user!.uid,
-        'email': email,
+        'uid': widget.user.uid,
+        'googleEmail': widget.user.email,
+        'googleDisplayName': widget.user.displayName,
+        'contactEmail': contactEmail,
+        'preferredPassword': preferredPassword,
         'firstName': _controllers[3].text.trim(),
         'lastName': _controllers[4].text.trim(),
-        'fullName':
-            '${_controllers[3].text.trim()} ${_controllers[4].text.trim()}',
         'dateOfBirth':
             '${_controllers[0].text}/${_controllers[1].text}/${_controllers[2].text}',
         'treatment': widget.treatment,
@@ -462,17 +575,16 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
         'appVersion': '1.0.0',
       };
 
-      // Save to users collection for easy viewing in Firebase Console
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(credential.user!.uid)
-          .set(userProfile);
+          .doc(widget.user.uid)
+          .set(userProfile, SetOptions(merge: true));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-                "✅ Quiz completed! Your ${widget.treatment} profile saved to Firebase Console."),
+                "✅ Quiz completed! Your ${widget.treatment} profile saved successfully."),
             backgroundColor: const Color(0xFF06B6D4),
             duration: const Duration(seconds: 3),
           ),
@@ -492,6 +604,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     final questions = quizData[widget.treatment]!;
     final current = questions[currentIndex];
+    final isMobile = MediaQuery.of(context).size.width < 600;
 
     return Scaffold(
       appBar: AppBar(
@@ -510,8 +623,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
       body: FadeTransition(
         opacity: _fadeAnimation,
         child: Padding(
-          padding: EdgeInsets.all(
-              _getResponsiveValue(mobile: 16, tablet: 24, desktop: 32)),
+          padding: EdgeInsets.all(isMobile ? 16 : 32),
           child: Column(
             children: [
               LinearProgressIndicator(
@@ -519,16 +631,14 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 backgroundColor: Colors.grey.shade200,
                 valueColor:
                     const AlwaysStoppedAnimation<Color>(Color(0xFF06B6D4)),
-                minHeight:
-                    _getResponsiveValue(mobile: 6, tablet: 8, desktop: 10),
+                minHeight: isMobile ? 6 : 10,
                 borderRadius: BorderRadius.circular(8),
               ),
               const SizedBox(height: 32),
               Text(
                 current['question'],
                 style: GoogleFonts.poppins(
-                  fontSize:
-                      _getResponsiveValue(mobile: 18, tablet: 20, desktop: 22),
+                  fontSize: isMobile ? 18 : 22,
                   fontWeight: FontWeight.w600,
                   color: const Color(0xFF1E3A8A),
                 ),
@@ -546,10 +656,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                       _fadeController.forward();
                     },
                     style: OutlinedButton.styleFrom(
-                      minimumSize: Size(
-                          double.infinity,
-                          _getResponsiveValue(
-                              mobile: 48, tablet: 52, desktop: 56)),
+                      minimumSize: Size(double.infinity, isMobile ? 48 : 56),
                       side: const BorderSide(color: Color(0xFF06B6D4)),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
@@ -578,42 +685,202 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   }
 
   Widget _buildDateInput() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Column(
       children: [
-        ResponsiveRowColumn(
-          layout: ResponsiveBreakpoints.of(context).isMobile
-              ? ResponsiveRowColumnType.COLUMN
-              : ResponsiveRowColumnType.ROW,
-          children: [
-            for (int i = 0; i < 3; i++)
-              ResponsiveRowColumnItem(
-                child: Padding(
-                  padding: EdgeInsets.all(
-                      _getResponsiveValue(mobile: 4, tablet: 6, desktop: 8)),
-                  child: TextField(
-                    controller: _controllers[i],
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                      labelText: ['DD', 'MM', 'YYYY'][i],
-                      border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      filled: true,
-                      fillColor: Colors.grey.shade50,
-                      contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 16),
-                    ),
+        if (isMobile)
+          // Mobile: Vertical layout
+          Column(
+            children: [
+              TextField(
+                controller: _controllers[0],
+                keyboardType: TextInputType.number,
+                maxLength: 2,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                    fontSize: 18, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  labelText: 'Day (DD)',
+                  hintText: '15',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  counterText: '',
+                ),
+                onChanged: (value) {
+                  if (value.length == 2) {
+                    FocusScope.of(context).nextFocus();
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _controllers[1],
+                keyboardType: TextInputType.number,
+                maxLength: 2,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                    fontSize: 18, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  labelText: 'Month (MM)',
+                  hintText: '03',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  counterText: '',
+                ),
+                onChanged: (value) {
+                  if (value.length == 2) {
+                    FocusScope.of(context).nextFocus();
+                  }
+                },
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _controllers[2],
+                keyboardType: TextInputType.number,
+                maxLength: 4,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.poppins(
+                    fontSize: 18, fontWeight: FontWeight.w500),
+                decoration: InputDecoration(
+                  labelText: 'Year (YYYY)',
+                  hintText: '1990',
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+                  counterText: '',
+                ),
+                onChanged: (value) {
+                  if (value.length == 4) {
+                    FocusScope.of(context).unfocus();
+                  }
+                },
+              ),
+            ],
+          )
+        else
+          // Desktop/Tablet: Horizontal layout
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _controllers[0],
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, fontWeight: FontWeight.w500),
+                  decoration: InputDecoration(
+                    labelText: 'DD',
+                    hintText: '15',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 20),
+                    counterText: '',
                   ),
+                  onChanged: (value) {
+                    if (value.length == 2) FocusScope.of(context).nextFocus();
+                  },
                 ),
               ),
-          ],
-        ),
-        const SizedBox(height: 24),
+              const SizedBox(width: 16),
+              Expanded(
+                child: TextField(
+                  controller: _controllers[1],
+                  keyboardType: TextInputType.number,
+                  maxLength: 2,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, fontWeight: FontWeight.w500),
+                  decoration: InputDecoration(
+                    labelText: 'MM',
+                    hintText: '03',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 20),
+                    counterText: '',
+                  ),
+                  onChanged: (value) {
+                    if (value.length == 2) FocusScope.of(context).nextFocus();
+                  },
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                flex: 2,
+                child: TextField(
+                  controller: _controllers[2],
+                  keyboardType: TextInputType.number,
+                  maxLength: 4,
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                      fontSize: 18, fontWeight: FontWeight.w500),
+                  decoration: InputDecoration(
+                    labelText: 'YYYY',
+                    hintText: '1990',
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 20),
+                    counterText: '',
+                  ),
+                  onChanged: (value) {
+                    if (value.length == 4) FocusScope.of(context).unfocus();
+                  },
+                ),
+              ),
+            ],
+          ),
+        const SizedBox(height: 32),
         SizedBox(
           width: double.infinity,
-          height: _getResponsiveValue(mobile: 48, tablet: 52, desktop: 56),
+          height: isMobile ? 52 : 60,
           child: ElevatedButton(
-            onPressed: () => _nextQuestion(),
-            child: Text('Continue', style: GoogleFonts.poppins(fontSize: 16)),
+            onPressed: () {
+              if (_controllers[0].text.isEmpty ||
+                  _controllers[1].text.isEmpty ||
+                  _controllers[2].text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please fill in all date fields'),
+                    backgroundColor: Colors.orange,
+                  ),
+                );
+                return;
+              }
+              _nextQuestion();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1E3A8A),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              'Continue',
+              style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.white),
+            ),
           ),
         ),
       ],
@@ -621,27 +888,37 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   }
 
   Widget _buildNameInput() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return Column(
       children: [
-        for (int i = 3; i < 5; i++) ...[
-          TextField(
-            controller: _controllers[i],
-            decoration: InputDecoration(
-              labelText: ['First Name', 'Last Name'][i - 3],
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              filled: true,
-              fillColor: Colors.grey.shade50,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-            ),
+        TextField(
+          controller: _controllers[3],
+          decoration: InputDecoration(
+            labelText: 'First Name',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           ),
-          if (i == 3) const SizedBox(height: 16),
-        ],
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _controllers[4],
+          decoration: InputDecoration(
+            labelText: 'Last Name',
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+            filled: true,
+            fillColor: Colors.grey.shade50,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+          ),
+        ),
         const SizedBox(height: 24),
         SizedBox(
           width: double.infinity,
-          height: _getResponsiveValue(mobile: 48, tablet: 52, desktop: 56),
+          height: isMobile ? 48 : 56,
           child: ElevatedButton(
             onPressed: () => _nextQuestion(),
             child: Text('Continue', style: GoogleFonts.poppins(fontSize: 16)),
@@ -652,15 +929,15 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
   }
 
   Widget _buildMultipleChoice(List<String> options) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     return ListView.builder(
       itemCount: options.length,
       itemBuilder: (context, index) => Container(
-        margin: EdgeInsets.symmetric(
-            vertical: _getResponsiveValue(mobile: 4, tablet: 6, desktop: 8)),
+        margin: EdgeInsets.symmetric(vertical: isMobile ? 4 : 8),
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            minimumSize: Size(double.infinity,
-                _getResponsiveValue(mobile: 50, tablet: 55, desktop: 60)),
+            minimumSize: Size(double.infinity, isMobile ? 50 : 60),
             backgroundColor: Colors.white,
             foregroundColor: const Color(0xFF1E3A8A),
             side: BorderSide(color: Colors.grey.shade200),
@@ -668,8 +945,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             elevation: 2,
             padding: EdgeInsets.symmetric(
-              horizontal:
-                  _getResponsiveValue(mobile: 16, tablet: 20, desktop: 24),
+              horizontal: isMobile ? 16 : 24,
               vertical: 16,
             ),
           ),
@@ -680,10 +956,7 @@ class _QuizPageState extends State<QuizPage> with TickerProviderStateMixin {
                 child: Text(
                   options[index],
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.poppins(
-                    fontSize: _getResponsiveValue(
-                        mobile: 14, tablet: 15, desktop: 16),
-                  ),
+                  style: GoogleFonts.poppins(fontSize: isMobile ? 14 : 16),
                 ),
               ),
               const Icon(Icons.chevron_right, color: Color(0xFF06B6D4)),
