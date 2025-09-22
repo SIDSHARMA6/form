@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "492272218176",
+    "project_id": "formphonix",
+    "storage_bucket": "formphonix.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:492272218176:android:97038a30f08aa5ac0d6fa5",
+        "android_client_info": {
+          "package_name": "com.example.phonixform"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "492272218176-qvljc361kjo4tdc83mgs55puspfpfob7.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.phonixform",
+            "certificate_hash": "a6a044174def61e04c173632dffa0f831a45e362"
+          }
+        },
+        {
+          "client_id": "492272218176-fh2cqj6ih66brjgdacbqgtk4dfeveg3v.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCnp312Z7eVIc2iE4-9VV_MCv_VocBIdSw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "492272218176-fh2cqj6ih66brjgdacbqgtk4dfeveg3v.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
